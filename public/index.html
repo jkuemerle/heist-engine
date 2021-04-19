@@ -1,0 +1,951 @@
+<html>
+
+<head>
+    <TITLE>Heist</TITLE>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
+    <script>
+        var gameKey = null;
+        var gameClaim = null;
+        var game = null;
+        var playerClaim = null;
+        var playerKey = null;
+        var player = null;
+        var maxPlayers = 4;
+        var advanced = false;
+        var interval = null;
+
+        $(function() {
+            populateGameTypeOptions();
+            $("#newGame").on("click", () => {
+                var optionKey = $("#gameOptionChoice").val();
+                if (optionKey) {
+                    newGame(optionKey);
+                    $("#gameKey").val(gameKey);
+                }
+            });
+            $("#checkGame").on("click", () => {
+                checkGame($("#gameKey").val());
+                startObservingGame();
+            });
+            $("#joinGame").on("click", () => {
+                var key = $("#gameKey").val();
+                joinGame(key);
+            });
+            $("#viewGame").on("click", () => {
+                var key = $("#gameKey").val();
+                viewGame(key);
+            });
+            $("#claimGame").on("click", () => {
+                var claim = $("#gameClaim").val();
+                claimGame(claim);
+            });
+            var gk = GetParameterValues('gameKey');
+            var adv = GetParameterValues("adv");
+            var gameClaimCode = GetParameterValues('gameClaim');
+            var playerClaimCode = GetParameterValues('playerClaim');
+            var viewGameCode = GetParameterValues('gameView');
+            if (gk && gk.length > 0) {
+                $("#gameKey").val(gk);
+            }
+            if (adv) {
+                advanced = true;
+                $("#gameClaimDiv").removeClass("d-none");
+                $("#playerClaimDiv").removeClass("d-none");
+            }
+            if (gameClaimCode) {
+                $("#gameClaim").val(gameClaimCode);
+                claimGame(gameClaimCode);
+            } else {
+                if (viewGameCode) {
+                    viewGame(viewGameCode);
+                    if (!playerClaimCode) {
+                        $("#newGameDiv").addClass("d-none");
+                        $("#existingGameDiv").addClass("d-none");
+                        if (!interval) {
+                            interval = window.setInterval(refreshGameFunction, 20000)
+                        }
+                        startObservingGame();
+                    }
+                }
+            }
+            if (playerClaimCode) {
+                $("#player1ClaimCode").val(playerClaimCode);
+                claimPlayer(1);
+                $("#newGameDiv").addClass("d-none");
+                $("#existingGameDiv").addClass("d-none");
+                if (!interval) {
+                    interval = window.setInterval(refreshGameFunction, 20000)
+                }
+                startObservingGame();
+            }
+        });
+
+        function populateGameTypeOptions() {
+            $("#gameSelectSpan").empty();
+            $.ajax(({
+                url: "api/options",
+                method: "GET",
+                data: {},
+                contentType: "application/json"
+            })).done(result => {
+                var select = $("<select></select>").attr("id", "gameOptionChoice").attr("name", "gameOptionChoice");
+                select.append($("<option></option>").attr("value", '').text(''));
+                if (result && result.length > 0) {
+                    for (var j = 0; j < result.length; j++) {
+                        select.append($("<option></option>").attr("value", result[j].key).text(result[j].name));
+                    }
+                }
+                $("#gameSelectSpan").append(select);
+            });
+        }
+
+        function startObservingGame() {
+            if (!interval) {
+                interval = window.setInterval(refreshGameFunction, 20000)
+            }
+        }
+
+        function refreshGameFunction() {
+            checkGame($("#gameKey").val());
+        }
+
+        function populateTypeSelectors(types) {
+            for (var i = 1; i <= maxPlayers; i++) {
+                $("#player" + i + "TypeSpan").empty();
+                $("#player" + i + "TypeTextSpan").text(types.text);
+                $("#player" + i + "TypeText").text(types.text);
+                if (!$("#player" + i + "Type").length) {
+                    var select = $("<select></select>").attr("id", "player" + i + "Type").attr("name", "player" + i + "Type").attr('disabled', 'disabled');
+                    select.append($("<option></option>").attr("value", '').text(''));
+                    for (var j = 0; j < types.options.length; j++) {
+                        select.append($("<option></option>").attr("value", types.options[j].key).text(types.options[j].value));
+                    }
+                    $("#player" + i + "TypeSpan").append(select);
+                }
+            }
+        }
+
+        function populateSpecialtySelectors(specs) {
+            $("#player" + i + "SpecialtySpan").empty();
+            for (var i = 1; i <= maxPlayers; i++) {
+                $("#player" + i + "SpecialtyText").text(specs.text);
+                if (!$("#player" + i + "Specialty").length) {
+                    var select = $("<select></select>").attr("id", "player" + i + "Specialty").attr("name", "player" + i + "Specialty").attr('disabled', 'disabled');
+                    select.append($("<option></option>").attr("value", '').text(''));
+                    for (var j = 0; j < specs.options.length; j++) {
+                        select.append($("<option></option>").attr("value", specs.options[j].key).text(specs.options[j].value));
+                    }
+                    $("#player" + i + "SpecialtySpan").append(select);
+                }
+            }
+        }
+
+        function populateHatSelectors(hats) {
+            $("#player" + i + "HatSpan").empty();
+            for (var i = 1; i <= maxPlayers; i++) {
+                $("#player" + i + "HatText").text(hats.text);
+                if (!$("#player" + i + "Hat").length) {
+                    var select = $("<select></select>").attr("id", "player" + i + "Hat").attr("name", "player" + i + "Hat").attr('disabled', 'disabled');
+                    select.append($("<option></option>").attr("value", '').text(''));
+                    for (var j = 0; j < hats.options.length; j++) {
+                        select.append($("<option></option>").attr("value", hats.options[j].key).text(hats.options[j].value));
+                    }
+                    $("#player" + i + "HatSpan").append(select);
+                }
+            }
+        }
+
+        function newGame(optionKey) {
+            $.ajax({
+                url: "api/newgame",
+                type: "POST",
+                data: JSON.stringify({
+                    players: 4,
+                    key: optionKey
+                }),
+                contentType: "application/json"
+            }).done(result => {
+                gameKey = result.key;
+                gameClaim = result.adminClaim;
+                $("#gameKey").val(gameKey);
+                $("#gameClaim").val(gameClaim);
+                getGame(gameKey).then(result => {
+                    game = result;
+                    joinGame(gameKey);
+                    populateTypeSelectors(game.options.type);
+                    populateSpecialtySelectors(game.options.specialty);
+                    populateHatSelectors(game.options.hat);
+                    refreshPageState();
+                    startObservingGame();
+                })
+            });
+        }
+
+        function claimGame(claimCode) {
+            $.ajax({
+                type: 'PATCH',
+                url: 'api/game',
+                data: JSON.stringify({
+                    claim: claimCode
+                }),
+                contentType: 'application/json'
+            }).done(result => {
+                gameClaim = result.currentAdmin;
+                gameKey = result.key;
+                getGame(gameKey).then(result => {
+                    game = result;
+                    populateTypeSelectors(game.options.type);
+                    populateSpecialtySelectors(game.options.specialty);
+                    populateHatSelectors(game.options.hat);
+                    refreshPageState();
+                    startObservingGame();
+                })
+            }).fail(result => {
+                alert("Unable to claim game" + claimCode);
+            })
+        }
+
+        function claimPlayer(playerNum) {
+            var claimCode = $("#player" + playerNum + "ClaimCode").val();
+            $.ajax({
+                type: 'PATCH',
+                url: 'api/player',
+                data: JSON.stringify({
+                    claim: claimCode
+                }),
+                contentType: 'application/json'
+            }).done(result => {
+                playerClaim = result.claimCode;
+                playerKey = result.playerKey;
+                getPlayer(playerKey).done(result => {
+                    player = result;
+                    refreshPageState();
+                    startObservingGame();
+                });
+            }).fail(result => {
+                alert("Unable to claim player: " + claimCode);
+            });
+        }
+
+        function checkGame(gameKey) {
+            $.ajax({
+                url: "api/game",
+                type: "GET",
+                data: {
+                    key: gameKey
+                },
+                cache: false
+            }).done(result => {
+                game = result;
+                refreshPageState();
+            });
+        }
+
+        function joinGame(gameKey) {
+            $.ajax({
+                url: "api/join",
+                type: "POST",
+                data: JSON.stringify({
+                    key: gameKey
+                }),
+                contentType: "application/json"
+            }).done(result => {
+                if (result && result.claimCode) {
+                    playerClaim = result.claimCode;
+                    playerKey = result.key;
+                    player = getPlayer(playerKey);
+                    if (game) {
+                        populateTypeSelectors(game.options.type);
+                        populateSpecialtySelectors(game.options.specialty);
+                        populateHatSelectors(game.options.hat);
+                        refreshPageState();
+                    } else {
+                        getGame(gameKey).then(result => {
+                            game = result;
+                            populateTypeSelectors(game.options.type);
+                            populateSpecialtySelectors(game.options.specialty);
+                            populateHatSelectors(game.options.hat);
+                            refreshPageState();
+                        })
+                    }
+                }
+            });
+        }
+
+        function viewGame(gameKey) {
+            $.ajax({
+                url: "api/game",
+                type: "GET",
+                data: {
+                    key: gameKey
+                },
+                cache: false
+            }).done(result => {
+                game = result;
+                if (game) {
+                    populateTypeSelectors(game.options.type);
+                    populateSpecialtySelectors(game.options.specialty);
+                    populateHatSelectors(game.options.hat);
+                }
+                refreshPageState();
+            });
+        }
+
+        function getPlayer(playerKey) {
+            return $.get("api/player", {
+                key: playerKey
+            });
+        }
+
+        function getGame(gameKey) {
+            return $.get("api/game", {
+                key: gameKey
+            });
+        }
+
+        function savePlayer() {
+            if (playerClaim) {
+                var data = {
+                    claim: playerClaim,
+                    playerName: $("#player1PlayerName").val(),
+                    characterName: $("#player1CharacterName").val(),
+                    description: $("#player1Description").val()
+                };
+                $.ajax({
+                    url: 'api/player',
+                    type: 'POST',
+                    data: JSON.stringify(data),
+                    contentType: "application/json"
+                }).then(result => {});
+            }
+        }
+
+        function bearSkillCheck(advantage) {
+            var data = {
+                claimCode: playerClaim,
+                advantage: advantage
+            };
+            if (playerClaim) {
+                $.ajax({
+                    url: "api/bear",
+                    type: "POST",
+                    data: JSON.stringify(data),
+                    contentType: "application/json"
+                }).done(result => {
+                    checkUpdateStats(result);
+                    checkNotify(result, "Bear");
+                });
+            }
+        };
+
+        function criminalSkillCheck(advantage) {
+            var data = {
+                claimCode: playerClaim,
+                advantage: advantage
+            };
+            if (playerClaim) {
+                $.ajax({
+                    url: "api/criminal",
+                    type: "POST",
+                    data: JSON.stringify(data),
+                    contentType: "application/json"
+                }).done(result => {
+                    checkUpdateStats(result);
+                    checkNotify(result, "Criminal");
+                });
+            }
+        };
+
+        function checkNotify(result, type) {
+            if (result) {
+                var text = "";
+                if (result.success) {
+                    text += "Success!"
+                } else {
+                    text += "Failure!"
+                }
+                if (result.roll2) {
+                    text += " Rolls were: " + result.roll1 + " and " + result.roll2;
+                } else {
+                    text += " Roll was: " + result.roll1;
+                }
+                $("#player1" + type + "Notify").text(text).fadeIn();
+                setTimeout(() => {
+                    $("#player1" + type + "Notify").text("").fadeOut();
+                }, 3000)
+
+            }
+
+        }
+
+        function checkUpdateStats(result) {
+            num = 1;
+            if (result) {
+                $("#player" + num + "BearVal").val(result.bear);
+                $("#player" + num + "BearProg").val(result.bear);
+                $("#player" + num + "CriminalVal").val(result.criminal);
+                $("#player" + num + "CriminalProg").val(result.criminal);
+            }
+        }
+
+        function refreshPageState() {
+            if (gameClaim) {
+                // hide game stuff
+                $("#newGameDiv").addClass("d-none");
+                $("#existingGameDiv").addClass("d-none");
+            }
+            if (game) {
+                $("#gameState").val(game.state);
+                $("#gameNameDisplay").val(game.key);
+                if (game.players && game.players.length > 0) {
+                    var me = game.players.filter(x => x.key == playerKey);
+                    var others = game.players.filter(x => x.key != playerKey);
+                    if (me.length == 1) {
+                        refreshPlayer(me[0], 1);
+                        $("#player1SaveButtonRow").removeClass('d-none');
+                        $("#player1SaveButtonCol").removeClass('d-none');
+                        // now all the other players
+                        for (var i = 0; i < others.length; i++) {
+                            refreshPlayer(others[i], i + 2);
+                        }
+                    } else {
+                        $("#player1SaveButtonRow").addClass('d-none');
+                        $("#player1SaveButtonCol").addClass('d-none');
+                        for (var i = 0; i < others.length; i++) {
+                            refreshPlayer(others[i], i + 1);
+                        }
+                    }
+                }
+                if (playerClaim) {
+                    var recover = window.location.protocol + "//" + window.location.hostname;
+                    if (window.location.port) {
+                        recover += window.location.port;
+                    }
+                    recover += window.location.pathname;
+                    recover += "?gameView=" + game.key + "&playerClaim=" + playerClaim;
+                    //$("#player1RecoveryLinkRow").removeClass("d-none");
+                    $("#player1RecoveryLinkSpan").text(recover);
+                    $("#player1PlayerName").attr('readonly', false);
+                    $("#player1CharacterName").attr('readonly', false);
+                    $("#player1Description").attr('readonly', false);
+                } else {
+                    $("#player1PlayerName").attr('readonly', true);
+                    $("#player1CharacterName").attr('readonly', true);
+                    $("#player1Description").attr('readonly', true);
+                }
+            }
+        }
+
+        function refreshPlayer(p, num) {
+            $("#player" + num + "PlayerName").val(p.playerName);
+            $("#player" + num + "CharacterName").val(p.characterName);
+            $("#player" + num + "Description").val(p.description);
+            $("#player" + num + "Type").val(p.type);
+            $("#player" + num + "Specialty").val(p.specialty);
+            $("#player" + num + "Hat").val(p.hat);
+            $("#player" + num + "BearVal").val(p.bear);
+            $("#player" + num + "BearProg").val(p.bear);
+            $("#player" + num + "CriminalVal").val(p.criminal);
+            $("#player" + num + "CriminalProg").val(p.criminal);
+        }
+
+        function GetParameterValues(param) {
+            var url = window.location.href.slice(window.location.href.indexOf('?') + 1).split('&');
+            for (var i = 0; i < url.length; i++) {
+                var urlparam = url[i].split('=');
+                if (urlparam[0] == param) {
+                    return urlparam[1];
+                }
+            }
+        }
+    </script>
+</head>
+
+<body>
+    <div class="container-fluid">
+        <div class="row align-items-center border">
+            <div class="col" id="newGameDiv" name="newGameDiv">
+                <span id="gameSelectSpan" name="gameSelectSpan"></span><button class="btn" id="newGame" name="newGame">New Game</button>
+            </div>
+            <div class="col border" id="existingGameDiv" name="existingGameDiv">
+                <div class="row align-items-center">
+                    <div class="col-auto">
+                        <label for="gameKey">Existing Game Key:</label>
+                    </div>
+                    <div class="col-auto">
+                        <input class="form-control" id="gameKey" name="gameKey" value="" />
+                    </div>
+                    <div class="col-sm-auto">
+                        <button class="btn" id="joinGame" name="joinGame">Join Game</button>
+                        <button class="btn" id="viewGame" name="viewGame">View Game</button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-auto">
+                <button class="btn" id="checkGame" name="checkGame">Refresh Game</button>
+            </div>
+            <div class="col-sm-auto">
+                <input class="form-control" id="gameState" name="gameState" value="" />
+            </div>
+            <div class="col-sm-auto">
+                <input class="form-control" id="gameNameDisplay" name="gameNameDisplay" value="" readonly />
+            </div>
+        </div>
+        <div class="row align-items-center border">
+            <div class="col">
+                <div class="row align-items-center d-none" id="gameClaimDiv" name="gameClaimDiv">
+                    <div class="col-auto">
+                        <label for="gameClaim">Game Claim Code:</label>
+                    </div>
+                    <div class="col-auto">
+                        <input class="form-control" id="gameClaim" name="gameClaim" />
+                    </div>
+                    <div class="col-sm-auto">
+                        <button class="btn" id="claimGame" name="claimGame">Claim Game</button>
+                    </div>
+                </div>
+                <div class="row align-items-center d-none" id="playerClaimDiv" name="playerClaimDiv">
+                    <div class="col-auto">
+                        <label for="player1ClaimCode">Player Claim Code:</label>
+                    </div>
+                    <div class="col-auto">
+                        <input class="form-control" id="player1ClaimCode" name="player1ClaimCode" />
+                    </div>
+                    <div class="col-sm-auto">
+                        <button class="btn" id="claimPlayer1" name="claimPlayer1" onclick="claimPlayer(1)">Claim Player</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row border">
+            <div class="col border">
+                <div class="row">
+                    <div class="col text-center">
+                        Player
+                    </div>
+                    <div class="col-sm-auto d-none" id="player1SaveButtonCol" name="player1SaveButtonCol">
+                        <button class="btn" type="button" name="player1CriminalCheckAdvantage" onclick="savePlayer();">Save</button>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        Player Name
+                    </div>
+                    <div class="col">
+                        <input class="form-control" id="player1PlayerName" name="player1PlayerName" />
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        Character Name
+                    </div>
+                    <div class="col">
+                        <input class="form-control" id="player1CharacterName" name="player1CharacterName" />
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        Character Description
+                    </div>
+                    <div class="col">
+                        <textarea class="form-control" id="player1Description" name="player1Description"></textarea>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <span id="player1TypeText" name="player1TypeText" /span>
+                    </div>
+                    <div class="col">
+                        <span id="player1TypeSpan" name="player1TypeSpan"></span>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <span id="player1SpecialtyText" name="player1SpecialtyText" /span>
+                    </div>
+                    <div class="col">
+                        <span id="player1SpecialtySpan" name="player1SpecialtySpan"></span>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <span id="player1HatText" name="player1HatText" /span>
+                    </div>
+                    <div class="col">
+                        <span id="player1HatSpan" name="player1HatSpan"></span>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <span id="player1TypeTextSpan" name="player1TypeTextSpan" /></span>
+                    </div>
+                    <div class="col">
+                        <input type="text" class="form-control" name="player1BearVal" id="player1BearVal" readonly size="2" /><br/>
+                        <meter class="form-control" id="player1BearProg" name="player1BearProg" value="0" max="6" />
+                    </div>
+                    <div class="col">
+                        <button type="button" name="player1BearCheckRegular" onclick="bearSkillCheck(false);">
+                            <img class="img-fluid" src="images/Bear.png" alt="Regular Bear #1 Skill Check" />
+                        </button>
+                    </div>
+                    <div class="col">
+                        <button type="button" name="player1BearCheckAdvantage" onclick="bearSkillCheck(true);">
+                            <img class="img-fluid" src="images/BearAdvantage.png" alt="Advantage Bear #1 Skill Check" />
+                        </button>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <h3><span id="player1BearNotify" name="player1BearNotify"></span></h3>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        Criminal
+                    </div>
+                    <div class="col">
+                        <input type="text" class="form-control" name="player1CriminalVal" id="player1CriminalVal" readonly size="2" /><br/>
+                        <meter class="form-control" id="player1CriminalProg" name="player1CriminalProg" value="0" max="6" />
+                    </div>
+                    <div class="col">
+                        <button type="button" name="player1CriminalCheckRegular" onclick="criminalSkillCheck(false);">
+                            <img class="img-fluid" src="images/Criminal.png" alt="Regular Criminal  #1 Skill Check" />
+                        </button>
+                    </div>
+                    <div class="col">
+                        <button type="button" name="player1CriminalCheckAdvantage" onclick="criminalSkillCheck(true);">
+                            <img class="img-fluid" src="images/CriminalAdvantage.png" alt="Advantage Criminal #1 Skill Check" />
+                        </button>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <h3><span id="player1CriminalNotify" name="player1CrimnalNotify"></span></h3>
+                    </div>
+                </div>
+                <div class="row d-none" id="player1RecoveryLinkRow" name="player1RecoveryLinkRow">
+                    <div class="col">
+                        Recovery link: <span id="player1RecoveryLinkSpan" name="player1RecoveryLinkSpan"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col border">
+                <div class="row">
+                    <div class="col text-center">
+                        Player
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        Player Name
+                    </div>
+                    <div class="col">
+                        <input class="form-control" id="player2PlayerName" name="player2PlayerName" readonly/>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        Character Name
+                    </div>
+                    <div class="col">
+                        <input class="form-control" id="player2CharacterName" name="player2CharacterName" readonly/>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        Character Description
+                    </div>
+                    <div class="col">
+                        <textarea class="form-control" id="player2Description" name="player2Description" readonly></textarea>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <span id="player2TypeText" name="player2TypeText" /span>
+                    </div>
+                    <div class="col">
+                        <span id="player2TypeSpan" name="player2TypeSpan"></span>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <span id="player2SpecialtyText" name="player2SpecialtyText" /span>
+                    </div>
+                    <div class="col">
+                        <span id="player2SpecialtySpan" name="player2SpecialtySpan"></span>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <span id="player2HatText" name="player2HatText" /span>
+                    </div>
+                    <div class="col">
+                        <span id="player2HatSpan" name="player2HatSpan"></span>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <span id="player2TypeTextSpan" name="player2TypeTextSpan" /></span>
+                    </div>
+                    <div class="col">
+                        <input type="text" class="form-control" name="player2BearVal" id="player2BearVal" readonly size="2" /><br/>
+                        <meter id="player2BearProg" name="player2BearProg" value="0" max="6" />
+                    </div>
+                    <div class="col">
+                        <button type="button" name="player2BearCheckRegular" onclick="">
+                            <img class="img-fluid" src="images/Bear.png" alt="Regular Bear #1 Skill Check" />
+                        </button>
+                    </div>
+                    <div class="col">
+                        <button type="button" name="player2BearCheckAdvantage" onclick="">
+                            <img class="img-fluid" src="images/BearAdvantage.png" alt="Advantage Bear #1 Skill Check" />
+                        </button>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <h3><span id="player2BearNotify" name="player2BearNotify"></span></h3>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        Criminal
+                    </div>
+                    <div class="col">
+                        <input type="text" class="form-control" name="player2CriminalVal" id="player2CriminalVal" readonly size="2" /><br/>
+                        <meter id="player2CriminalProg" name="player2CriminalProg" value="0" max="6" />
+                    </div>
+                    <div class="col">
+                        <button type="button" name="player2CriminalCheckRegular" onclick="">
+                            <img class="img-fluid" src="images/Criminal.png" alt="Regular Criminal  #1 Skill Check" />
+                        </button>
+                    </div>
+                    <div class="col">
+                        <button type="button" name="player2CriminalCheckAdvantage" onclick="">
+                            <img class="img-fluid" src="images/CriminalAdvantage.png" alt="Advantage Criminal #1 Skill Check" />
+                        </button>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <h3><span id="player2CriminalNotify" name="player2CrimnalNotify"></span></h3>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col border">
+                <div class="row">
+                    <div class="col text-center">
+                        Player
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        Player Name
+                    </div>
+                    <div class="col">
+                        <input class="form-control" id="player3PlayerName" name="player3PlayerName" readonly/>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        Character Name
+                    </div>
+                    <div class="col">
+                        <input class="form-control" id="player3CharacterName" name="player3CharacterName" readonly/>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        Character Description
+                    </div>
+                    <div class="col">
+                        <textarea class="form-control" id="player3Description" name="player3Description" readonly></textarea>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <span id="player3TypeText" name="player3TypeText" /span>
+                    </div>
+                    <div class="col">
+                        <span id="player3TypeSpan" name="player3TypeSpan"></span>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <span id="player3SpecialtyText" name="player3SpecialtyText" /span>
+                    </div>
+                    <div class="col">
+                        <span id="player3SpecialtySpan" name="player3SpecialtySpan"></span>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <span id="player3HatText" name="player3HatText" /span>
+                    </div>
+                    <div class="col">
+                        <span id="player3HatSpan" name="player3HatSpan"></span>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <span id="player3TypeTextSpan" name="player3TypeTextSpan" /></span>
+                    </div>
+                    <div class="col">
+                        <input type="text" class="form-control" name="player3BearVal" id="player3BearVal" readonly size="2" /><br/>
+                        <meter id="player3BearProg" name="player3BearProg" value="0" max="6" />
+                    </div>
+                    <div class="col">
+                        <button type="button" name="player3BearCheckRegular" onclick="">
+                            <img class="img-fluid" src="images/Bear.png" alt="Regular Bear #1 Skill Check" />
+                        </button>
+                    </div>
+                    <div class="col">
+                        <button type="button" name="player3BearCheckAdvantage" onclick="">
+                            <img class="img-fluid" src="images/BearAdvantage.png" alt="Advantage Bear #1 Skill Check" />
+                        </button>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <h3><span id="player3BearNotify" name="player3BearNotify"></span></h3>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        Criminal
+                    </div>
+                    <div class="col">
+                        <input type="text" class="form-control" name="player3CriminalVal" id="player3CriminalVal" readonly size="2" /><br/>
+                        <meter id="player3CriminalProg" name="player3CriminalProg" value="0" max="6" />
+                    </div>
+                    <div class="col">
+                        <button type="button" name="player3CriminalCheckRegular" onclick="">
+                            <img class="img-fluid" src="images/Criminal.png" alt="Regular Criminal  #1 Skill Check" />
+                        </button>
+                    </div>
+                    <div class="col">
+                        <button type="button" name="player3CriminalCheckAdvantage" onclick="">
+                            <img class="img-fluid" src="images/CriminalAdvantage.png" alt="Advantage Criminal #1 Skill Check" />
+                        </button>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <h3><span id="player3CriminalNotify" name="player3CrimnalNotify"></span></h3>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col border">
+                <div class="row">
+                    <div class="col text-center">
+                        Player
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        Player Name
+                    </div>
+                    <div class="col">
+                        <input class="form-control" id="player4PlayerName" name="player4PlayerName" readonly/>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        Character Name
+                    </div>
+                    <div class="col">
+                        <input class="form-control" id="player4CharacterName" name="player4CharacterName" readonly/>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        Character Description
+                    </div>
+                    <div class="col">
+                        <textarea class="form-control" id="player4Description" name="player4Description" readonly></textarea>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <span id="player3TypeText" name="player3TypeText" /></span>
+                    </div>
+                    <div class="col">
+                        <span id="player4TypeSpan" name="player4TypeSpan"></span>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <span id="player4SpecialtyText" name="player4SpecialtyText" /span>
+                    </div>
+                    <div class="col">
+                        <span id="player4SpecialtySpan" name="player4SpecialtySpan"></span>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <span id="player4HatText" name="player4HatText" /span>
+                    </div>
+                    <div class="col">
+                        <span id="player4HatSpan" name="player4HatSpan"></span>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <span id="player4TypeTextSpan" name="player4TypeTextSpan" /></span>
+                    </div>
+                    <div class="col">
+                        <input type="text" class="form-control" name="player4BearVal" id="player4BearVal" readonly size="2" /><br/>
+                        <meter id="player4BearProg" name="player4BearProg" value="0" max="6" />
+                    </div>
+                    <div class="col">
+                        <button type="button" name="player4BearCheckRegular" onclick="">
+                            <img class="img-fluid" src="images/Bear.png" alt="Regular Bear #1 Skill Check" />
+                        </button>
+                    </div>
+                    <div class="col">
+                        <button type="button" name="player4BearCheckAdvantage" onclick="">
+                            <img class="img-fluid" src="images/BearAdvantage.png" alt="Advantage Bear #1 Skill Check" />
+                        </button>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <h3><span id="player4BearNotify" name="player4BearNotify"></span></h3>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        Criminal
+                    </div>
+                    <div class="col">
+                        <input type="text" class="form-control" name="player4CriminalVal" id="player4CriminalVal" readonly size="2" /><br/>
+                        <meter id="player4CriminalProg" name="player4CriminalProg" value="0" max="6" />
+                    </div>
+                    <div class="col">
+                        <button type="button" name="player4CriminalCheckRegular" onclick="">
+                            <img class="img-fluid" src="images/Criminal.png" alt="Regular Criminal  #1 Skill Check" />
+                        </button>
+                    </div>
+                    <div class="col">
+                        <button type="button" name="player4CriminalCheckAdvantage" onclick="">
+                            <img class="img-fluid" src="images/CriminalAdvantage.png" alt="Advantage Criminal #1 Skill Check" />
+                        </button>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <h3><span id="player4CriminalNotify" name="player4CrimnalNotify"></span></h3>
+                    </div>
+                </div>
+            </div>
+
+
+        </div>
+    </div>
+</body>
+
+</html>

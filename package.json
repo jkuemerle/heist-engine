@@ -1,0 +1,26 @@
+{
+  "name": "heistengine",
+  "version": "1.0.0",
+  "description": "Heist Game Engine",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Joe Kuemerle",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^1.19.0",
+    "dotenv": "^8.2.0",
+    "express": "^4.17.1",
+    "express-session": "^1.17.1",
+    "human-readable-ids": "^1.0.4",
+    "knex": "^0.21.14",
+    "mysql": "^2.18.1",
+    "mysql2": "^2.2.5",
+    "random": "^2.2.0",
+    "sqlite3": "^5.0.0",
+    "swagger-ui-express": "^4.1.6",
+    "uuid": "^8.3.2",
+    "web-push": "^3.4.4"
+  }
+}

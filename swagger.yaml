@@ -1,0 +1,441 @@
+swagger: "2.0"
+info:
+  description: "This is the documentation for the  engine to run Honey Heist based games."
+  version: "1.0.0"
+  title: "Heist Engine"
+  termsOfService: "https:///"
+  contact:
+    email: "joe@kuemerle.com"
+  license:
+    name: "??"
+host: "heist.herokuapp.com"
+basePath: "/api"
+tags:
+- name: "Game"
+  description: "Game Methods"
+- name: "Player"
+  description: "Player Methods"
+schemes:
+- "https"
+paths:
+  /options:
+    get:
+      tags:
+      - "Game" 
+      summary: "Retrieve available game types."
+      description: "Returns the key/value list of game types that are configured."
+      operationId: "getGameOptions"
+      consumes:
+      - "application/json"
+      - "application/x-www-form-urlencoded"
+      produces:
+      - "application/json"
+      responses:
+        200:
+          description: "Game Types"
+          schema:
+            type: "array"
+            items: 
+              $ref: "#/definitions/Option"
+  /newgane:
+    post:
+      tags:
+      - "Game"
+      summary: "Starts a new game of the specified type"
+      description: "Starts a new game and returns the admin token to the caller"
+      operationId: "newGame"
+      consumes:
+      - "application/json"
+      - "application/x-www-form-urlencoded"
+      produces:
+      - "application/json"
+      parameters:
+        - in: body
+          name: "Game Options"
+          description: "The options to use for the new game."
+          required: true
+          schema:
+            type: "object"
+            required: 
+              - players
+              - key
+            properties:
+              players:
+                type: "integer"
+                minimum: 1
+                maximum: 4
+              key:
+                type: "string"
+      responses:
+        404:
+          description: "Invalid game option(s)"
+        200:
+          description: "Game created successfully"
+          schema:
+            $ref: "#/definitions/NewGame"
+  /game:
+    get:
+      tags:
+      - "Game"
+      summary: "Retrieves the options of a game"
+      description: "Returns the set of options for a given game"
+      operationId: "getGame"
+      consumes:
+      - "application/json"
+      - "application/x-www-form-urlencoded"
+      produces:
+      - "application/json"
+      parameters:
+        - in: query
+          name: "key"
+          description: "The key value of the game."
+          required: true
+          type: "string"
+      responses:
+        404:
+          description: "Invalid game key"
+        200:
+          description: "Game options"
+          schema:
+            $ref: "#/definitions/GameOptions"
+    patch:
+      tags:
+      - "Game"
+      summary: "Claims ownership of a game"
+      description: "Takes ownership of a game"
+      operationId: "claimGame"
+      consumes:
+      - "application/json"
+      - "application/x-www-form-urlencoded"
+      produces:
+      - "application/json"
+      parameters:
+        - in: body
+          name: "Game Claim Code"
+          description: "The claim code of the game to claim ownership of."
+          required: true
+          schema:
+            type: "object"
+            required: 
+              - claim
+            properties:
+              claim:
+                type: "string"
+      responses:
+        404:
+          description: "Invalid game claim code"
+        200:
+          description: "Game claim options"
+          schema:
+            $ref: "#/definitions/GameClaimOptions"
+  /join:
+    post:
+      tags:
+      - "Game"
+      summary: "Joins a game"
+      description: "Creates a new player within the given game as long as there is space for a new player"
+      operationId: "joinwGame"
+      consumes:
+      - "application/json"
+      - "application/x-www-form-urlencoded"
+      produces:
+      - "application/json"
+      parameters:
+        - in: body
+          name: "Join Key"
+          description: "The key of the game to join."
+          required: true
+          schema:
+            type: "object"
+            required: 
+              - key
+            properties:
+              key:
+                type: "string"
+      responses:
+        404:
+          description: "Unable to join game, usually because game key does not exist or game does not have room for anothwr player."
+        200:
+          description: "Game joined successfully. The player key and claim code are returned."
+          schema:
+            $ref: "#/definitions/JoinGame"
+  /player:
+    get:
+      tags:
+      - "Player"
+      summary: "Retrieves the state of a player"
+      description: "Returns the stae of a given player"
+      operationId: "getPlayer"
+      consumes:
+      - "application/json"
+      - "application/x-www-form-urlencoded"
+      produces:
+      - "application/json"
+      parameters:
+        - in: query
+          name: "key"
+          description: "The key value of the player."
+          required: true
+          type: "string"
+      responses:
+        404:
+          description: "Invalid player key"
+        200:
+          description: "Player State"
+          schema:
+            $ref: "#/definitions/PlayerState"
+    patch:
+      tags:
+      - "Player"
+      summary: "Claims a player"
+      description: "Claims control of a given player"
+      operationId: "claimPlayer"
+      consumes:
+      - "application/json"
+      - "application/x-www-form-urlencoded"
+      produces:
+      - "application/json"
+      parameters:
+        - in: body
+          name: "claim"
+          description: "The claim value of the player."
+          schema:
+            type: "object"
+            required: 
+              - claim
+            properties:
+              claim:
+                type: "string"
+      responses:
+        404:
+          description: "Invalid player claim"
+        200:
+          description: "Player Claim"
+          schema:
+            $ref: "#/definitions/PlayerClaim"
+    post:
+      tags:
+      - "Player"
+      summary: "Updates player values"
+      description: "Updates values for a given player"
+      operationId: "updatePlayer"
+      consumes:
+      - "application/json"
+      - "application/x-www-form-urlencoded"
+      produces:
+      - "application/json"
+      parameters:
+        - in: body
+          name: "claim"
+          description: "The claim value of the player."
+          schema:
+            $ref: "#/definitions/PlayerUpdate"
+      responses:
+        404:
+          description: "Invalid player claim"
+        200:
+          description: "Player Updated"
+          schema:
+            $ref: "#/definitions/PlayerUpdateResult"
+  /bear:
+    post:
+      tags:
+      - "Player"
+      summary: "Performs a bear check for the given player"
+      description: "Perform a bear check for the player"
+      operationId: "bearCheck"
+      consumes:
+      - "application/json"
+      - "application/x-www-form-urlencoded"
+      produces:
+      - "application/json"
+      parameters:
+        - in: body
+          name: "claimCode"
+          description: "The claim code of the player to perform the bear check on."
+          required: true
+          schema:
+            type: "object"
+            required: 
+              - claimCode
+            properties:
+              claimCode:
+                type: "string"
+              advantage:
+                type: "boolean"
+      responses:
+        404:
+          description: "Invalid player claim"
+        200:
+          description: "Bear Check"
+          schema:
+            $ref: "#/definitions/StatCheckResult"
+  /criminal:
+    post:
+      tags:
+      - "Player"
+      summary: "Performs a criminal check for the given player"
+      description: "Perform a criminal check for the player"
+      operationId: "criminalCheck"
+      consumes:
+      - "application/json"
+      - "application/x-www-form-urlencoded"
+      produces:
+      - "application/json"
+      parameters:
+        - in: body
+          name: "claimCode"
+          description: "The claim code of the player to perform the crimonal check on."
+          required: true
+          schema:
+            type: "object"
+            required: 
+              - claimCode
+            properties:
+              claimCode:
+                type: "string"
+              advantage:
+                type: "boolean"
+      responses:
+        404:
+          description: "Invalid player claim"
+        200:
+          description: "Bear Check"
+          schema:
+            $ref: "#/definitions/StatCheckResult"
+definitions:
+  Option:
+    type: "object"
+    properties:
+      key:
+        type: "string"
+      name:
+        type: "string"
+  NewGame:
+    type: "object"
+    properties:
+      key:
+        type: "string"
+      adminClaim:
+        type: "string"
+  JoinGame:
+    type: "object"
+    properties:
+      success:
+          type: "boolean"
+      playerKey:
+        type: "string"
+      claimCode:
+        type: "string"
+  GameClaimOptions:
+    type: "object"
+    properties:
+      success:
+        type: "boolean"
+      key:
+        type: "string"
+      currentAdmin:
+        type: "string"
+  GameOptions:
+    type: "object"
+    properties:
+      type:
+          type: "object"
+          properties:
+            text:
+              type: "string"
+            options:
+              type: "array"
+              items: 
+                $ref: "#/definitions/KeyValue"
+      specialty:
+        type: "object"
+        properties:
+          text:
+            type: "string"
+          options:
+            type: "array"
+            items: 
+              $ref: "#/definitions/KeyValue"
+      hat:
+        type: "object"
+        properties:
+          text:
+            type: "string"
+          options:
+            type: "array"
+            items: 
+              $ref: "#/definitions/KeyValue"
+  KeyValue:
+    type: "object"
+    properties:
+        key:
+          type: "string"
+        value:
+          type: "string"
+  PlayerState:
+    type: "object"
+    properties:
+      key:
+        type: "string"
+      playerName:
+        type: "string"
+      characterName:
+        type: "string"
+      hat:
+        type: "string"
+      type:
+        type: "string"
+      specialty:
+        type: "string"
+      bear:
+        type: "integer"
+      criminal:
+        type: "integer"
+      description:
+        type: "string"
+      pictureImage:
+        type: "string"
+      hatImage:
+        type: "string"
+  PlayerClaim:
+    type: "object"
+    properties:
+      success:
+        type: "boolean"
+      playerKey:
+        type: "string"
+      claimCode:
+        type: "string"
+  PlayerUpdate:
+    type: "object"
+    properties:
+      claimCode:
+        type: "string"
+      playerName:
+        type: "string"
+      characterName:
+        type: "string"
+      description:
+        type: "string"
+  PlayerUpdateResult:
+    type: "object"
+    properties:
+      success:
+        type: "boolean"
+  StatCheckResult:
+    type: "object"
+    properties:
+      success:
+        type: "boolean"
+      bear:
+        type: "integer"
+      criminal:
+        type: "integer"
+      roll1:
+        type: "integer"
+      roll2:
+        type: "integer"
+externalDocs:
+  description: "Find out more about Heist Engine"
+  url: "https://github.com/jkuemerle/HeistEngine"

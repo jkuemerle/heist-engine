@@ -1,0 +1,8 @@
+{
+    "name": "Heist Enging",
+    "description": "A game engine for hosting Honey Heist based games as well as a rough HTML user interface.",
+    "repository": "https://github.com/jkuemerle/heist-enging",
+    "logo": "",
+    "keywords": ["node", "express", "static", "game", "honey-heist"],
+    "addons": ["jawsdb:kitefin"]
+}
